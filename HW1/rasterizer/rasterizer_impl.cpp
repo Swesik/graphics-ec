@@ -15,7 +15,6 @@ const glm::vec3 pixel_center = glm::vec3(0.5F, 0.5F, 0.0F);
 
 void printMat4(glm::mat4 mat){
     mat = glm::transpose(mat);
-    // std::cout << "matrix" << std::endl;
     std::cout << mat[0][0] << "\t" << mat[0][1] << "\t" << mat[0][2] << "\t" << mat[0][3] << std::endl;
     std::cout << mat[1][0] << "\t" << mat[1][1] << "\t" << mat[1][2] << "\t" << mat[1][3] << std::endl;
     std::cout << mat[2][0] << "\t" << mat[2][1] << "\t" << mat[2][2] << "\t" << mat[2][3] << std::endl;
@@ -108,7 +107,6 @@ void Rasterizer::SetView() {
                             0.0F, 0.0F, 0.0F, 1.0F                               // fourth column
     );
     this->view = model_to_view * translate_to_origin;
-    // printMat4(this->view);
 }
 
 // TODO
@@ -156,20 +154,10 @@ void Rasterizer::SetScreenSpace() {
                                   0.0F, 0.0F, 1.0F, 0.0F, // third column
                                   width/2, height/2, 0.0F, 1.0F // fourth column
     );
-    // printMat4(this->screenspace);
 }
 
 // TODO
 glm::vec3 Rasterizer::BarycentricCoordinate(glm::vec2 pos, Triangle trig) {
-
-    // glm::vec3 pos3 = glm::vec3(pos, 1);
-    // glm::mat3x3 A = glm::mat3x3(
-    //     trig.pos[0].x, trig.pos[1].x, trig.pos[2].x,
-    //     trig.pos[0].y, trig.pos[1].y, trig.pos[2].y,
-    //     1, 1, 1
-    // );
-    // return glm::inverse(glm::transpose(A)) * pos3;
-
     float alpha = (-(pos.x - trig.pos[1].x) * (trig.pos[2].y - trig.pos[1].y) + (pos.y - trig.pos[1].y) * (trig.pos[2].x - trig.pos[1].x)) / 
                     ( -(trig.pos[0].x - trig.pos[1].x) * (trig.pos[2].y - trig.pos[1].y) + (trig.pos[0].y - trig.pos[1].y) * (trig.pos[2].x - trig.pos[1].x));
     float beta = (-(pos.x - trig.pos[2].x) * (trig.pos[0].y - trig.pos[2].y) + (pos.y - trig.pos[2].y) * (trig.pos[0].x - trig.pos[2].x)) / 
@@ -179,13 +167,13 @@ glm::vec3 Rasterizer::BarycentricCoordinate(glm::vec2 pos, Triangle trig) {
 }
 
 // TODO
+bool Rasterizer::msaaMaskDefault = false;
 float Rasterizer::zBufferDefault = -1.0F;
 
 // TODO
 void Rasterizer::UpdateDepthAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed,
                                     ImageGrey& ZBuffer) {
-
-    glm::vec2 pos(static_cast<float>(x), static_cast<float>(y));
+    glm::vec2 pos(static_cast<float>(x)+0.5F, static_cast<float>(y)+0.5F);
     glm::vec3 bary_coord = BarycentricCoordinate(pos,transformed);
 
     if(bary_coord.x < 0 || bary_coord.y < 0 || bary_coord.z < 0){
@@ -197,12 +185,29 @@ void Rasterizer::UpdateDepthAtPixel(uint32_t x, uint32_t y, Triangle original, T
     }
 }
 
+void Rasterizer::UpdateMSAAAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, ImageGrey& MSAAMask){
+    glm::vec3 bary_coord = BarycentricCoordinate(glm::vec2(static_cast<float>(x)+0.5F, static_cast<float>(y)+0.5F),transformed);
+    float inv_depth = bary_coord.x * (1/transformed.pos[0].z) + bary_coord.y * (1/transformed.pos[1].z) + bary_coord.z * (1/transformed.pos[2].z);
+    if(ZBuffer.Get(x, y) != 1/inv_depth){
+        return;
+    }
+
+     glm::vec3 pos(x,y,0);
+    uint32_t num_contained_samples = 0;
+    for(const auto& sample : msaaSamples){
+        num_contained_samples += sampleIsInsideTriangle(pos + glm::vec3(sample,0.0F), transformed) ? 1 : 0;
+    }
+    MSAAMask.Set(x, y, static_cast<float>(num_contained_samples)/static_cast<float>(msaaSamples.size()));
+}
+
 // TODO
 void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, Image& image) {
+    if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA && MSAA_mask.Get(x, y) == 0.0F ){
+        return;
+    }
 
-    glm::vec2 pos(static_cast<float>(x), static_cast<float>(y));
+    glm::vec2 pos(static_cast<float>(x)+0.5F, static_cast<float>(y)+0.5F);
     glm::vec3 bary_coord = BarycentricCoordinate(pos,transformed);
-
 
     float inv_depth = bary_coord.x * (1/transformed.pos[0].z) + bary_coord.y * (1/transformed.pos[1].z) + bary_coord.z * (1/transformed.pos[2].z);
     if(ZBuffer.Get(x, y) != 1/inv_depth){
@@ -225,6 +230,10 @@ void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Triangle original, Triangl
         result = result + diffuse + specular;
 
         // result = result + diffuse;
+    }
+
+    if(loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA){
+        image.Set(x, y, *MSAA_mask.Get(x, y) * result);
     }
 
     image.Set(x, y, result);

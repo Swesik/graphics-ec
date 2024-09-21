@@ -97,9 +97,9 @@ void LoadQuat(const fkyaml::node& parent, std::string tag, glm::quat& quat)
 #define LOAD_QUAT_FROM_YAML(node, tag, vec)     LoadQuat(node, #tag, vec);
 
 Loader::Loader(std::string filename) : Loader() 
-    {
-        this->filename = filename;
-    }
+{
+    this->filename = filename;
+}
 
 bool Loader::Load()
 {
@@ -232,6 +232,11 @@ bool Loader::LoadYaml()
                 this->AASpp = 0;
             }
             else if (AAName == "SSAA")
+            {
+                this->AAConfig = AntiAliasConfig::SSAA;
+                LOAD_DATA_FROM_YAML(this->AASpp, root, samples, uint32_t)
+            }
+            else if (AAName == "MSAA")
             {
                 this->AAConfig = AntiAliasConfig::SSAA;
                 LOAD_DATA_FROM_YAML(this->AASpp, root, samples, uint32_t)
