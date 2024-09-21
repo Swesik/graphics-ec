@@ -15,7 +15,6 @@ const glm::vec3 pixel_center = glm::vec3(0.5F, 0.5F, 0.0F);
 
 void printMat4(glm::mat4 mat){
     mat = glm::transpose(mat);
-    // std::cout << "matrix" << std::endl;
     std::cout << mat[0][0] << "\t" << mat[0][1] << "\t" << mat[0][2] << "\t" << mat[0][3] << std::endl;
     std::cout << mat[1][0] << "\t" << mat[1][1] << "\t" << mat[1][2] << "\t" << mat[1][3] << std::endl;
     std::cout << mat[2][0] << "\t" << mat[2][1] << "\t" << mat[2][2] << "\t" << mat[2][3] << std::endl;
@@ -108,7 +107,6 @@ void Rasterizer::SetView() {
                             0.0F, 0.0F, 0.0F, 1.0F                               // fourth column
     );
     this->view = model_to_view * translate_to_origin;
-    // printMat4(this->view);
 }
 
 // TODO
@@ -156,20 +154,10 @@ void Rasterizer::SetScreenSpace() {
                                   0.0F, 0.0F, 1.0F, 0.0F, // third column
                                   width/2, height/2, 0.0F, 1.0F // fourth column
     );
-    // printMat4(this->screenspace);
 }
 
 // TODO
 glm::vec3 Rasterizer::BarycentricCoordinate(glm::vec2 pos, Triangle trig) {
-
-    // glm::vec3 pos3 = glm::vec3(pos, 1);
-    // glm::mat3x3 A = glm::mat3x3(
-    //     trig.pos[0].x, trig.pos[1].x, trig.pos[2].x,
-    //     trig.pos[0].y, trig.pos[1].y, trig.pos[2].y,
-    //     1, 1, 1
-    // );
-    // return glm::inverse(glm::transpose(A)) * pos3;
-
     float alpha = (-(pos.x - trig.pos[1].x) * (trig.pos[2].y - trig.pos[1].y) + (pos.y - trig.pos[1].y) * (trig.pos[2].x - trig.pos[1].x)) / 
                     ( -(trig.pos[0].x - trig.pos[1].x) * (trig.pos[2].y - trig.pos[1].y) + (trig.pos[0].y - trig.pos[1].y) * (trig.pos[2].x - trig.pos[1].x));
     float beta = (-(pos.x - trig.pos[2].x) * (trig.pos[0].y - trig.pos[2].y) + (pos.y - trig.pos[2].y) * (trig.pos[0].x - trig.pos[2].x)) / 
