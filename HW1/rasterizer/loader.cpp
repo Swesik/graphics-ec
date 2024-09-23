@@ -152,6 +152,8 @@ bool Loader::LoadYaml()
             this->type = TestType::SHADING_DEPTH;
         else if (task == "shading")
             this->type = TestType::SHADING;
+        else if (task == "deferred-shading")
+            this->type = TestType::DEFERRED_SHADING;
         else
         {
             std::string msg = "cannot recognize test type " + task;
@@ -216,7 +218,7 @@ bool Loader::LoadYaml()
                 }
             }
 
-            if (this->type == TestType::SHADING)
+            if (this->type == TestType::SHADING || this->type == TestType::DEFERRED_SHADING)
             {
                 LOAD_DATA_FROM_YAML(this->specularExponent, root, exponent, float)
                 LOAD_COLOR_FROM_YAML(root, ambient, this->ambientColor)

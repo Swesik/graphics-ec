@@ -20,7 +20,7 @@ enum class TestType
 {
     TRIANGLE,
     TRANSFORM, TRANSFORM_TEST,
-    SHADING_DEPTH, SHADING,
+    SHADING_DEPTH, SHADING, DEFERRED_SHADING,
     ERROR
 };
 
@@ -50,6 +50,8 @@ public:
             typeStr = "transform";
         else if (this->type == TestType::SHADING)
             typeStr = "shading";
+        else if (this->type == TestType::DEFERRED_SHADING)
+            typeStr = "deferred_shading";
         else if (this->type == TestType::TRANSFORM_TEST)
             typeStr = "transform_test";
         else if (this->type == TestType::ERROR)
@@ -60,6 +62,8 @@ public:
             AAStr = "none";
         else if (this->AAConfig == AntiAliasConfig::SSAA)
             AAStr = "SSAA";
+        else if (this->AAConfig == AntiAliasConfig::MSAA)
+            AAStr = "MSAA";
 
         std::string transformStr = "<no transform needed>\n";
         if (this->type != TestType::TRIANGLE)
@@ -81,7 +85,7 @@ public:
         }
 
         std::string lightStr = "<no light needed>\n";
-        if (this->type == TestType::SHADING)
+        if (this->type == TestType::SHADING || this->type == TestType::DEFERRED_SHADING)
         {
             lightStr = "";
             lightStr += "Specular Exponent: " + ToStr(this->specularExponent) + "\n";

@@ -166,11 +166,7 @@ glm::vec3 Rasterizer::BarycentricCoordinate(glm::vec2 pos, Triangle trig) {
     return glm::vec3(alpha, beta, gamma);
 }
 
-// TODO
-bool Rasterizer::msaaMaskDefault = false;
 float Rasterizer::zBufferDefault = -1.0F;
-
-// TODO
 void Rasterizer::UpdateDepthAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed,
                                     ImageGrey& ZBuffer) {
     glm::vec2 pos(static_cast<float>(x)+0.5F, static_cast<float>(y)+0.5F);
@@ -185,6 +181,7 @@ void Rasterizer::UpdateDepthAtPixel(uint32_t x, uint32_t y, Triangle original, T
     }
 }
 
+bool Rasterizer::msaaMaskDefault = false;
 void Rasterizer::UpdateMSAAAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, ImageGrey& MSAAMask){
     glm::vec3 bary_coord = BarycentricCoordinate(glm::vec2(static_cast<float>(x)+0.5F, static_cast<float>(y)+0.5F),transformed);
     float inv_depth = bary_coord.x * (1/transformed.pos[0].z) + bary_coord.y * (1/transformed.pos[1].z) + bary_coord.z * (1/transformed.pos[2].z);
@@ -200,8 +197,8 @@ void Rasterizer::UpdateMSAAAtPixel(uint32_t x, uint32_t y, Triangle original, Tr
     MSAAMask.Set(x, y, static_cast<float>(num_contained_samples)/static_cast<float>(msaaSamples.size()));
 }
 
-// TODO
-void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, Image& image) {
+Rasterizer::gBufferStruct Rasterizer::gBufferDefault{glm::vec3(), glm::vec3()};
+void Rasterizer::UpdateGBufferAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, ImageBuffer<gBufferStruct>& gBuffer){
     if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA && MSAA_mask.Get(x, y) == 0.0F ){
         return;
     }
@@ -214,12 +211,62 @@ void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Triangle original, Triangl
         return;
     }
 
-    Color result = loader.GetAmbientColor();;
+    glm::vec3 norm = glm::normalize(bary_coord.x * original.normal[0] + bary_coord.y * original.normal[1] + bary_coord.z * original.normal[2]);
+    glm::vec3 world_coord = bary_coord.x * original.pos[0] + bary_coord.y * original.pos[1] + bary_coord.z * original.pos[2];
+
+    gBuffer.Set(x, y, {norm, world_coord});
+}
+
+void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Image& image) {
+    if(!GBuffer.Get(x, y)){
+        return;
+    }
+
+    Color result = loader.GetAmbientColor();
     const std::vector<Light>& lights = loader.GetLights();
     const Camera& camera = loader.GetCamera();
-    glm::vec3 norm = glm::normalize(bary_coord.x * original.normal[0] + bary_coord.y * original.normal[1] + bary_coord.z * original.normal[2]);
+    auto gBuffer_obj = *GBuffer.Get(x, y);
     for(auto& light : lights){
-        glm::vec3 world_coord = bary_coord.x * original.pos[0] + bary_coord.y * original.pos[1] + bary_coord.z * original.pos[2];
+        glm::vec3 light_ray = light.pos - gBuffer_obj.pos;
+        glm::vec3 reflection_ray = camera.pos - gBuffer_obj.pos;
+        glm::vec3 half_vec = glm::normalize(light_ray + reflection_ray);
+        
+        float r = glm::length(light_ray);
+        Color diffuse = light.intensity * (1/ (r*r)) * std::max(0.0F,glm::dot(light_ray, gBuffer_obj.norm)) * light.color;
+        Color specular = light.intensity * (1/ (r*r)) *std::pow(std::max(0.0F,glm::dot(half_vec, gBuffer_obj.norm)),loader.GetSpecularExponent()) * light.color;
+        result = result + diffuse + specular;
+    }
+    
+    if(loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA){
+        image.Set(x, y, *MSAA_mask.Get(x, y) * result);
+    }
+
+    image.Set(x, y, result);
+}
+
+// TODO
+void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, Image& image) {
+    UpdateGBufferAtPixel(x, y, original, transformed, this->GBuffer);
+    if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA && MSAA_mask.Get(x, y) == 0.0F ){
+        return;
+    }
+
+    glm::vec2 pos(static_cast<float>(x)+0.5F, static_cast<float>(y)+0.5F);
+    glm::vec3 bary_coord = BarycentricCoordinate(pos,transformed);
+
+    float inv_depth = bary_coord.x * (1/transformed.pos[0].z) + bary_coord.y * (1/transformed.pos[1].z) + bary_coord.z * (1/transformed.pos[2].z);
+    if(ZBuffer.Get(x, y) != 1/inv_depth){
+        return;
+    }
+
+    glm::vec3 norm = glm::normalize(bary_coord.x * original.normal[0] + bary_coord.y * original.normal[1] + bary_coord.z * original.normal[2]);
+    glm::vec3 world_coord = bary_coord.x * original.pos[0] + bary_coord.y * original.pos[1] + bary_coord.z * original.pos[2];
+
+    Color result = loader.GetAmbientColor();
+    const std::vector<Light>& lights = loader.GetLights();
+    const Camera& camera = loader.GetCamera();
+
+    for(auto& light : lights){
         glm::vec3 light_ray = light.pos - world_coord;
         glm::vec3 reflection_ray = camera.pos - world_coord;
         glm::vec3 half_vec = glm::normalize(light_ray + reflection_ray);

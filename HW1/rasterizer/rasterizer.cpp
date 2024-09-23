@@ -1,5 +1,6 @@
 #include "rasterizer.hpp"
 
+#include "image.hpp"
 #include "loader.hpp"
 #include <array>
 #include <cmath>
@@ -25,7 +26,9 @@ Rasterizer::Rasterizer(Loader& loader) :
     view(glm::mat4(1.f)),  
     projection(glm::mat4(1.f)),  
     screenspace(glm::mat4(1.f)),
-    ZBuffer(loader.GetWidth(), loader.GetHeight(), loader.GetOutputName())
+    ZBuffer(loader.GetWidth(), loader.GetHeight(), loader.GetOutputName()),
+    MSAA_mask(loader.GetWidth(), loader.GetHeight(), loader.GetOutputName()),
+    GBuffer(loader.GetWidth(), loader.GetHeight(), loader.GetOutputName())
 {   
     for (size_t i = 0; i != loader.GetHeight(); ++i)
         for (size_t j = 0; j != loader.GetWidth(); ++j)
@@ -79,11 +82,16 @@ void Rasterizer::InitMSSAMask(ImageGrey& MSSAMask, uint32_t num_samples)
     msaaSamples.emplace_back(0.5F,0.5F);
 }
 
-void Rasterizer::InitZBuffer(ImageGrey& ZBuffer)
-{
+void Rasterizer::InitZBuffer(ImageGrey& ZBuffer){
     for (size_t i = 0; i != this->loader.GetHeight(); ++i)
         for (size_t j = 0; j != this->loader.GetWidth(); ++j)
             ZBuffer.Set(j, i, Rasterizer::zBufferDefault);
+}
+
+void Rasterizer::InitGBuffer(ImageBuffer<gBufferStruct>& GBuffer){
+    for (size_t i = 0; i != this->loader.GetHeight(); ++i)
+        for (size_t j = 0; j != this->loader.GetWidth(); ++j)
+            GBuffer.Set(j, i, Rasterizer::gBufferDefault);
 }
 
 void Rasterizer::DrawPrimitiveDepth(Triangle transformed, Triangle original, ImageGrey& ZBuffer)
@@ -112,6 +120,36 @@ void Rasterizer::DrawPrimitiveDepth(Triangle transformed, Triangle original, Ima
             this->UpdateDepthAtPixel(x, y, original, transformed, ZBuffer);
 }
 
+void Rasterizer::DrawPrimitiveGBuffer(Triangle transformed, Triangle original, ImageBuffer<gBufferStruct>& gBuffer){
+    uint32_t xmax = 0, xmin = UINT32_MAX;
+    uint32_t ymax = 0, ymin = UINT32_MAX;
+    const std::array<glm::vec4, 3>& vertices = transformed.pos;
+
+    std::array<glm::vec3, 3> trimmedPos;
+    for (size_t ind = 0; ind != 3; ++ind)
+    {
+        const glm::vec4& v = vertices[ind];
+        if (v.x > xmax)
+            xmax = v.x;
+        if (v.x < xmin)
+            xmin = v.x;
+        if (v.y > ymax)
+            ymax = v.y;
+        if (v.y < ymin)
+            ymin = v.y;
+        trimmedPos[ind] = glm::vec3(v.x, v.y, 0);
+    }
+
+    for (uint32_t x = xmin; x <= xmax; ++x) {
+        for (uint32_t y = ymin; y <= ymax; ++y) {
+            if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA){
+                this->UpdateMSAAAtPixel(x, y, original, transformed, this->MSAA_mask);
+            }
+            this->UpdateGBufferAtPixel(x, y, original, transformed, gBuffer);
+        }
+    }
+}
+
 void Rasterizer::DrawPrimitiveShaded(Triangle transformed, Triangle original, Image& image)
 {
     uint32_t xmax = 0, xmin = UINT32_MAX;
@@ -133,7 +171,17 @@ void Rasterizer::DrawPrimitiveShaded(Triangle transformed, Triangle original, Im
         trimmedPos[ind] = glm::vec3(v.x, v.y, 0);
     }
 
-    for (uint32_t x = xmin; x <= xmax; ++x)
-        for (uint32_t y = ymin; y <= ymax; ++y)
+    for (uint32_t x = xmin; x <= xmax; ++x) {
+        for (uint32_t y = ymin; y <= ymax; ++y){
+            if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA){
+                this->UpdateMSAAAtPixel(x, y, original, transformed, this->MSAA_mask);
+            }
             this->ShadeAtPixel(x, y, original, transformed, image);
+        }
+    }
+}
+void Rasterizer::DrawPrimitiveShaded(Image& image){
+    for (uint32_t x = 0; x <= loader.GetWidth(); ++x)
+        for (uint32_t y = 0; y <= loader.GetHeight(); ++y)
+            this->ShadeAtPixel(x, y, image);
 }

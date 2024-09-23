@@ -10,12 +10,16 @@
 class Rasterizer
 {
 public:
+    struct gBufferStruct{
+        glm::vec3 norm;
+        glm::vec3 pos;
+    };
+
     Rasterizer(Loader& loader);
 
     /// rasterizer.cpp
     // Render a single triangle, with no transformations, and possible anti-aliasing, based on config
     void DrawPrimitiveRaw(Image& image, Triangle trig, AntiAliasConfig config, uint32_t spp);
-
 
     // Add a model to the rasterizer. Provide rotation part of the transformation, and dispatch to the impl version
     void AddModel(MeshTransform transform);
@@ -26,11 +30,20 @@ public:
     // Initialize the ZBuffer with the default value specified in impl
     void InitZBuffer(ImageGrey& ZBuffer);
 
+    // Initialize the ZBuffer with the default value specified in impl
+    void InitGBuffer(ImageBuffer<gBufferStruct>& GBuffer);
+
     // Render the depth information of a single triangle.
     void DrawPrimitiveDepth(Triangle transformed, Triangle original, ImageGrey& ZBuffer);
 
+    // update the GBuffer with a single triangle
+    void DrawPrimitiveGBuffer(Triangle transformed, Triangle original, ImageBuffer<gBufferStruct>& gBuffer);
+
     // Render a single triangle, with blinn-phong shading
     void DrawPrimitiveShaded(Triangle transformed, Triangle original, Image& image);
+
+    // Render the full image, with blinn-phong shading (via deferred shading)
+    void DrawPrimitiveShaded(Image& image);
 
     // rasterizer_impl.cpp
 
@@ -98,7 +111,26 @@ public:
      * @param MSAAMask: the MSAAMask to update the coverage information in. See spec, or class `Image` in `image.hpp` for APIs of read/write operations
      */
     void UpdateMSAAAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, ImageGrey& MSAAMask);
+
+    /**
+     * Update the depth information at a single pixel in the ZBuffer. This function will be called for every pixel in the bounding box of the triangle.
+     * @param x: x coordinate of the pixel
+     * @param y: y coordinate of the pixel
+     * @param original: the original triangle in the model space (before MVP transformation)
+     * @param transformed: the transformed triangle in the screen space (after MVP transformation)
+     * @param NormBuffer: the NormBuffer to update the normal information in. See spec, or class `Image` in `image.hpp` for APIs of read/write operations
+     */
+    void UpdateGBufferAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, ImageBuffer<gBufferStruct>& gBuffer);
     
+    /**
+     * Shade the pixel at the given position, using Blinn-Phong shading model. This function will be called for every pixel
+     * This function should only be used with deferred shading
+     * @param x: x coordinate of the pixel
+     * @param y: y coordinate of the pixel
+     * @param image: the image to render the pixel on. See spec, or class `Image` in `image.hpp` for APIs of read/write operations
+     */
+    void ShadeAtPixel(uint32_t x, uint32_t y, Image& image);
+
     /**
      * Shade the pixel at the given position, using Blinn-Phong shading model. This function will be called for every pixel in the bounding box of the triangle.
      * @param x: x coordinate of the pixel
@@ -110,6 +142,7 @@ public:
     void ShadeAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, Image& image);
 
 public:
+
     // Configs
     Loader& loader;
     std::vector<glm::mat4x4> model;
@@ -120,6 +153,7 @@ public:
     // Buffers
     ImageGrey ZBuffer;
     ImageGrey MSAA_mask;
+    ImageBuffer<gBufferStruct> GBuffer;
 
     // Configurations 
     /** 
@@ -127,6 +161,8 @@ public:
      */
     static float zBufferDefault;
     static bool msaaMaskDefault;
+    static gBufferStruct gBufferDefault;
+
     std::vector<glm::vec2> msaaSamples;
 };
 

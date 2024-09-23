@@ -90,11 +90,13 @@ void Renderer::Render(int argc, char** argv) {
         } else {
             auto& shapes = loader.GetShapes();
             auto& attribs = loader.GetAttribs();
-
-            if (loader.GetType() == TestType::SHADING_DEPTH || loader.GetType() == TestType::SHADING){
+            if (loader.GetType() == TestType::SHADING_DEPTH || loader.GetType() == TestType::SHADING || loader.GetType() == TestType::DEFERRED_SHADING){
                 rasterizer.InitZBuffer(rasterizer.ZBuffer);
                 if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA){
                     rasterizer.InitMSSAMask(rasterizer.MSAA_mask, loader.GetSpp());
+                }
+                if(loader.GetType() == TestType::DEFERRED_SHADING){
+                    rasterizer.InitGBuffer(rasterizer.GBuffer);
                 }
             }
 
@@ -103,7 +105,7 @@ void Renderer::Render(int argc, char** argv) {
 
             const size_t fv = 3;
             for (size_t s = 0; s < shapes.size(); s++) {
-                if (loader.GetType() == TestType::SHADING) {
+                if (loader.GetType() == TestType::SHADING || loader.GetType() == TestType::DEFERRED_SHADING) {
                     transformedTrigs.clear();
                     originalTrigs.clear();
                     transformedTrigs.reserve(shapes.size());
@@ -150,10 +152,9 @@ void Renderer::Render(int argc, char** argv) {
 
                     if (loader.GetType() == TestType::TRIANGLE || loader.GetType() == TestType::TRANSFORM)
                         rasterizer.DrawPrimitiveRaw(image, transformed, loader.GetAntiAliasConfig(), loader.GetSpp());
-                    else if (loader.GetType() == TestType::SHADING_DEPTH || loader.GetType() == TestType::SHADING)
+                    else if (loader.GetType() == TestType::SHADING_DEPTH || loader.GetType() == TestType::SHADING || loader.GetType() == TestType::DEFERRED_SHADING)
                         rasterizer.DrawPrimitiveDepth(transformed, original, rasterizer.ZBuffer);
-
-                    if (loader.GetType() == TestType::SHADING) {
+                    if (loader.GetType() == TestType::SHADING || loader.GetType() == TestType::DEFERRED_SHADING) {
                         transformedTrigs.push_back(transformed);
                         originalTrigs.push_back(original);
                     }
@@ -164,7 +165,13 @@ void Renderer::Render(int argc, char** argv) {
                 if (loader.GetType() == TestType::SHADING)
                     for (size_t i = 0; i < transformedTrigs.size(); ++i)
                         rasterizer.DrawPrimitiveShaded(transformedTrigs[i], originalTrigs[i], image);
+                else if (loader.GetType() == TestType::DEFERRED_SHADING)
+                    for (size_t i = 0; i < transformedTrigs.size(); ++i){
+                        rasterizer.DrawPrimitiveGBuffer(transformedTrigs[i], originalTrigs[i], rasterizer.GBuffer);
+                    }
             }
+            if (loader.GetType() == TestType::DEFERRED_SHADING)
+                rasterizer.DrawPrimitiveShaded(image);
         }
 
         if (loader.GetType() == TestType::SHADING_DEPTH)
