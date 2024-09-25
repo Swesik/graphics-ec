@@ -57,6 +57,12 @@ void Renderer::Render(int argc, char** argv) {
 
         Rasterizer rasterizer(loader);
 
+        if (!loader.GetTextureName().empty()){
+            rasterizer.CreateMipMap(loader.GetTextureName());
+            if (loader.GetType() == TestType::TEXTURE_TEST){ return; }
+        }
+
+
         glm::mat4x4 viewxprojection { 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1 };
 
         if (loader.GetType() == TestType::TRIANGLE) {

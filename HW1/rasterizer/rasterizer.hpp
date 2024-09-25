@@ -5,6 +5,7 @@
 #include "image.hpp"
 #include "loader.hpp"
 #include <cstdint>
+#include <vector>
 #include <_types/_uint32_t.h>
 
 class Rasterizer
@@ -13,6 +14,7 @@ public:
     struct gBufferStruct{
         glm::vec3 norm;
         glm::vec3 pos;
+        Color texel;
     };
 
     Rasterizer(Loader& loader);
@@ -113,6 +115,22 @@ public:
     void UpdateMSAAAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, ImageGrey& MSAAMask);
 
     /**
+     * @brief Create a vector MipMap levels
+     * 
+     * @param texture_filename: filename of the texture
+     */
+    void CreateMipMap(const std::string& texture_filename);
+
+    /**
+     * @brief Get the Texel color from
+     * 
+     * @param tex_coord coordinate on the range [0,1] of the texel
+     * @param depth of pixel which is used to determien the mipmap level
+     * @return Color of the texel
+     */
+    Color GetTexel(glm::vec2 tex_coord, float depth);
+
+    /**
      * Update the depth information at a single pixel in the ZBuffer. This function will be called for every pixel in the bounding box of the triangle.
      * @param x: x coordinate of the pixel
      * @param y: y coordinate of the pixel
@@ -154,6 +172,8 @@ public:
     ImageGrey ZBuffer;
     ImageGrey MSAA_mask;
     ImageBuffer<gBufferStruct> GBuffer;
+
+    std::vector<Image> mipmap_vector;
 
     // Configurations 
     /** 

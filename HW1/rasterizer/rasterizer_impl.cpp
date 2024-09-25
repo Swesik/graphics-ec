@@ -1,9 +1,15 @@
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
 #include <random>
 #include <limits>
+#include <string>
 #include <_types/_uint32_t.h>
+
+#define STB_IMAGE_IMPLEMENTATION
+#include "../thirdparty/stb/stb_image.h"
 
 #include "image.hpp"
 #include "loader.hpp"
@@ -214,7 +220,75 @@ void Rasterizer::UpdateGBufferAtPixel(uint32_t x, uint32_t y, Triangle original,
     glm::vec3 norm = glm::normalize(bary_coord.x * original.normal[0] + bary_coord.y * original.normal[1] + bary_coord.z * original.normal[2]);
     glm::vec3 world_coord = bary_coord.x * original.pos[0] + bary_coord.y * original.pos[1] + bary_coord.z * original.pos[2];
 
-    gBuffer.Set(x, y, {norm, world_coord});
+    if(loader.GetTextureName().empty()){
+        gBuffer.Set(x, y, {norm, world_coord, Color()});
+        return;
+    }
+
+    glm::vec2 tex_coord = bary_coord.x * transformed.tex_coord[0] + bary_coord.y * transformed.tex_coord[1] + bary_coord.z * transformed.tex_coord[2];
+    Color texel = GetTexel(tex_coord, 1/inv_depth);
+    gBuffer.Set(x, y, {norm, world_coord, texel});
+}
+
+void readImageIn(const std::string& filename, Image& target, const std::string& output_file){
+    int width, height, nrChannels;
+    auto img = stbi_load(filename.c_str(), &width, &height, &nrChannels, 0);
+    target = Image(width,height, output_file);
+    for (int x = 0; x < width; ++x){
+        for(int y = 0; y < height; ++y){
+            int index = (x + y * width) * nrChannels;
+            if (nrChannels == 4){
+                target.Set(x, y, Color(img[index], img[index + 1], img[index + 2], img[index + 3]));
+            } else if (nrChannels == 3) {
+                glm::vec3 color_vec(img[index], img[index + 1], img[index + 2]);
+                target.Set(x, y, Color(color_vec));
+            }
+        }
+    }
+    stbi_image_free(img);
+}
+
+void Rasterizer::CreateMipMap(const std::string& texture_filename){
+    Image original_texture;
+    std::string mipmap_file = std::string("texture-mipmap/level-0");
+    readImageIn(texture_filename, original_texture, mipmap_file);
+
+    uint32_t width = original_texture.GetWidth();
+    uint32_t height = original_texture.GetWidth();
+    uint32_t num_mipmaps = static_cast<uint32_t>(std::log2(std::min(width,height)));
+    this->mipmap_vector.reserve(num_mipmaps);
+    this->mipmap_vector.emplace_back(original_texture);
+
+    if(loader.GetType() == TestType::TEXTURE_TEST) {
+        this->mipmap_vector[0].Write();
+    }
+    // num_mipmaps = 1;
+    for (uint32_t i = 1; i <= num_mipmaps; ++i){
+        mipmap_file = "texture-mipmap/level-" + std::to_string(i);
+        mipmap_vector.emplace_back(mipmap_vector[i-1].GetWidth()/2, mipmap_vector[i-1].GetHeight()/2, mipmap_file);
+        for(uint32_t x = 0; x < mipmap_vector[i].GetWidth(); ++x){
+            for(uint32_t y = 0; y < mipmap_vector[i].GetHeight(); ++y){
+                float num_samples = 4;
+                Color color1 = (1/num_samples) * mipmap_vector[i-1].Get(2 * x, 2 * y).value_or(Color());
+                Color color2 = (1/num_samples) * mipmap_vector[i-1].Get(2 * x + 1, 2 * y).value_or(Color());
+                Color color3 = (1/num_samples) * mipmap_vector[i-1].Get(2 * x, 2 * y + 1).value_or(Color());
+                Color color4 = (1/num_samples) * mipmap_vector[i-1].Get(2 * x + 1, 2 * y + 1).value_or(Color());
+                mipmap_vector[i].Set(x, y, (color1 + color2 + color3 + color4));
+            }
+        }
+        // (1,0) --> (2,0),(2,1),(3,0),(3,1)
+        if(loader.GetType() == TestType::TEXTURE_TEST) {
+            mipmap_vector[i].Write();
+        }
+    }
+}
+
+// TODO
+Color Rasterizer::GetTexel(glm::vec2 tex_coord, float depth){
+    uint32_t mip_map_level = static_cast<uint32_t>(static_cast<float>(mipmap_vector.size()) * (1.0F + depth) / 2);
+    Image& mipmap = mipmap_vector[mip_map_level];
+    Color texel = mipmap.Get(static_cast<uint32_t>(mipmap.GetWidth() * tex_coord.x), static_cast<uint32_t>(mipmap.GetHeight() *tex_coord.y)).value();
+    return texel;
 }
 
 void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Image& image) {
@@ -222,10 +296,21 @@ void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Image& image) {
         return;
     }
 
+    auto gBuffer_obj = *GBuffer.Get(x, y);
     Color result = loader.GetAmbientColor();
+
+    if (!loader.GetTextureName().empty()){
+        Color texel = gBuffer_obj.texel;
+        result = Color(
+                static_cast<float>(result.r) * static_cast<float>(texel.r),
+                static_cast<float>(result.g) * static_cast<float>(texel.g),
+                static_cast<float>(result.b) * static_cast<float>(texel.b),
+                static_cast<float>(texel.a));
+    }
+
     const std::vector<Light>& lights = loader.GetLights();
     const Camera& camera = loader.GetCamera();
-    auto gBuffer_obj = *GBuffer.Get(x, y);
+    
     for(auto& light : lights){
         glm::vec3 light_ray = light.pos - gBuffer_obj.pos;
         glm::vec3 reflection_ray = camera.pos - gBuffer_obj.pos;
@@ -244,7 +329,6 @@ void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Image& image) {
     image.Set(x, y, result);
 }
 
-// TODO
 void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, Image& image) {
     UpdateGBufferAtPixel(x, y, original, transformed, this->GBuffer);
     if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA && MSAA_mask.Get(x, y) == 0.0F ){
@@ -263,6 +347,17 @@ void Rasterizer::ShadeAtPixel(uint32_t x, uint32_t y, Triangle original, Triangl
     glm::vec3 world_coord = bary_coord.x * original.pos[0] + bary_coord.y * original.pos[1] + bary_coord.z * original.pos[2];
 
     Color result = loader.GetAmbientColor();
+
+    if (!loader.GetTextureName().empty()){
+        glm::vec2 tex_coord = bary_coord.x * transformed.tex_coord[0] + bary_coord.y * transformed.tex_coord[1] + bary_coord.z * transformed.tex_coord[2];
+        Color texel = GetTexel(tex_coord, 1/inv_depth);
+        result = Color(
+            static_cast<float>(result.r) * static_cast<float>(texel.r),
+            static_cast<float>(result.g) * static_cast<float>(texel.g),
+            static_cast<float>(result.b) * static_cast<float>(texel.b),
+            static_cast<float>(texel.a));
+    }
+
     const std::vector<Light>& lights = loader.GetLights();
     const Camera& camera = loader.GetCamera();
 

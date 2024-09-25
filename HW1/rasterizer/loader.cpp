@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <iostream>
 #include <fstream>
+#include <string>
 
 #include "../thirdparty/fkyaml/node.hpp"
 #include "image.hpp"
@@ -115,7 +116,11 @@ bool Loader::Load()
         return false;
     }
     else 
-    {
+    {   
+        if (this->type == TestType::TEXTURE_TEST){
+            return true;
+        }
+
         bool objSuccess = LoadObj();
         if (!objSuccess)
         {
@@ -147,22 +152,28 @@ bool Loader::LoadYaml()
 
         // type
         LOAD_DEF_DATA_FROM_YAML(task, root, task, std::string)
-        if (task == "triangle")
+        if (task == "triangle"){
             this->type = TestType::TRIANGLE;
-        else if (task == "transform")
+        } else if (task == "transform"){
             this->type = TestType::TRANSFORM;
-        else if (task == "transform-test")
+        } else if (task == "transform-test") {
             this->type = TestType::TRANSFORM_TEST;
-        else if (task == "shading-depth")
+        } else if (task == "shading-depth") {
             this->type = TestType::SHADING_DEPTH;
-        else if (task == "shading")
+        } else if (task == "shading") {
             this->type = TestType::SHADING;
-        else if (task == "deferred-shading")
+        } else if (task == "deferred-shading") {
             this->type = TestType::DEFERRED_SHADING;
-        else
-        {
+        } else if (task == "texture-test") {
+            this->type = TestType::TEXTURE_TEST;
+        } else {
             std::string msg = "cannot recognize test type " + task;
             throw fkyaml::exception(msg.c_str());
+        }
+
+        if (this->type == TestType::TEXTURE_TEST){
+            LOAD_DATA_FROM_YAML(this->textureName, root, texture, std::string)
+            return true;
         }
 
         // resolution

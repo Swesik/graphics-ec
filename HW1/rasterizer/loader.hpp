@@ -20,6 +20,7 @@ enum class TestType
 {
     TRIANGLE,
     TRANSFORM, TRANSFORM_TEST,
+    TEXTURE_TEST,
     SHADING_DEPTH, SHADING, DEFERRED_SHADING,
     ERROR
 };
@@ -54,6 +55,8 @@ public:
             typeStr = "deferred_shading";
         else if (this->type == TestType::TRANSFORM_TEST)
             typeStr = "transform_test";
+        else if (this->type == TestType::TEXTURE_TEST)
+            typeStr = "texture_test";
         else if (this->type == TestType::ERROR)
             typeStr = "error";
 

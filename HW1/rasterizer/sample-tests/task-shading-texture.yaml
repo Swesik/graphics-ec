@@ -21,13 +21,13 @@ transforms:
         translation: [0.0, 0.0, 0.0]
         scale: [1.0, 1.0, 1.0]
 exponent: 4.0
-ambient: [10, 10, 10]
+ambient: [1, 1, 1]
 lights:
     -
         pos: [0.0, 1.0, 2.0]
-        intensity: 2.0
+        intensity: 1.5
         color: [255, 255, 255]
     -
         pos: [4.0, 0.0, 0.0]
-        intensity: 8.0
+        intensity: 3.0
         color: [179, 87, 181]
