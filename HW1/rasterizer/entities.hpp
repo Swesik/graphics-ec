@@ -16,6 +16,7 @@
 struct Triangle {
     std::array<glm::vec4, 3> pos;
     std::array<glm::vec4, 3> normal;
+    std::array<glm::vec2, 3> tex_coord;
 
     inline void Homogenize() {
         for (size_t i = 0; i < 3; ++i) pos[i] /= pos[i].w;
@@ -37,6 +38,10 @@ inline std::string ToStr(glm::vec4 vec) {
 
 inline std::string ToStr(glm::vec3 vec) {
     return "[x: " + ToStr(vec.x) + "]" + "[y: " + ToStr(vec.y) + "]" + "[z: " + ToStr(vec.z) + "]";
+}
+
+inline std::string ToStr(glm::vec2 vec) {
+    return "[x: " + ToStr(vec.x) + "]" + "[y: " + ToStr(vec.y) + "]";
 }
 
 inline std::string ToStr(Color color) {

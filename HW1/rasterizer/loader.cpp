@@ -5,6 +5,7 @@
 #include <fstream>
 
 #include "../thirdparty/fkyaml/node.hpp"
+#include "image.hpp"
 
 #define TINYOBJLOADER_IMPLEMENTATION 
 #define TINYOBJLOADER_USE_MAPBOX_EARCUT                 // use robust triangulation
@@ -73,6 +74,10 @@ void LoadQuat(const fkyaml::node& parent, std::string tag, glm::quat& quat)
         var = node[#tag].get_value<TYPE>(); \
     else \
         throw fkyaml::exception(("missing tag " + std::string(#tag)).c_str());
+
+#define MAYBE_LOAD_DATA_FROM_YAML(var, node, tag, TYPE) \
+    if (node.contains(#tag)) \
+        var = node[#tag].get_value<TYPE>(); \
 
 #define LOAD_DEF_DATA_FROM_YAML(var, node, tag, TYPE) \
     TYPE var; \
@@ -169,9 +174,10 @@ bool Loader::LoadYaml()
         if (width > MAX_RES || height > MAX_RES)
             throw fkyaml::exception("invalid resolution: width/height exceeding 4096");
 
-        // obj/output filename
+        // obj/output/tex filename
         LOAD_DATA_FROM_YAML(this->modelName, root, obj, std::string)
         LOAD_DATA_FROM_YAML(this->outputName, root, output, std::string)
+        MAYBE_LOAD_DATA_FROM_YAML(this->textureName, root, texture, std::string)
 
         // If the task is TRANSFORM or SHADING, then there must be a camera; load it
         if (this->type != TestType::TRIANGLE)

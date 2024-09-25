@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 
+#include "entities.hpp"
 #include "image.hpp"
 #include "loader.hpp"
 #include "rasterizer.hpp"
@@ -18,8 +19,13 @@ void PrintTask(const Loader& loader) {
 void PrintTaskTriangle(const Triangle& trig) {
     std::string sephead = "=====================Triangle=====================\n";
     std::string sep = "==================================================\n";
-    std::string msg = sephead + "Vertex 1 position: " + ToStr(trig.pos[0]) + "\n" + "Vertex 2 position: "
-                    + ToStr(trig.pos[1]) + "\n" + "Vertex 3 position: " + ToStr(trig.pos[2]) + "\n" + sep;
+    std::string msg = sephead
+                    + "Vertex 1 position: " + ToStr(trig.pos[0]) + "\n"
+                    + "Vertex 2 position: " + ToStr(trig.pos[1]) + "\n"
+                    + "Vertex 3 position: " + ToStr(trig.pos[2]) + "\n\n"
+                    + "Vertex 1 tex-coord: " + ToStr(trig.tex_coord[0]) + "\n"
+                    + "Vertex 2 tex-coord: " + ToStr(trig.tex_coord[1]) + "\n"
+                    + "Vertex 3 tex-coord: " + ToStr(trig.tex_coord[2]) + "\n" + sep;
     std::cout << msg;
 }
 
@@ -142,6 +148,12 @@ void Renderer::Render(int argc, char** argv) {
                             tinyobj::real_t nz = attribs.normals[3 * size_t(idx.normal_index) + 2];
                             original.normal[v] = modelMat * glm::vec4(nx, ny, nz, 1);
                         }
+                        if (idx.texcoord_index >= 0) {
+                            tinyobj::real_t tx = attribs.texcoords[2 * size_t(idx.texcoord_index) + 0];
+                            tinyobj::real_t ty = attribs.texcoords[2 * size_t(idx.texcoord_index) + 1];
+                            original.tex_coord[v] = glm::vec2(tx, ty);
+                            transformed.tex_coord = original.tex_coord;
+                        }
                     }
 
                     transformed.Homogenize();
@@ -166,9 +178,9 @@ void Renderer::Render(int argc, char** argv) {
                     for (size_t i = 0; i < transformedTrigs.size(); ++i)
                         rasterizer.DrawPrimitiveShaded(transformedTrigs[i], originalTrigs[i], image);
                 else if (loader.GetType() == TestType::DEFERRED_SHADING)
-                    for (size_t i = 0; i < transformedTrigs.size(); ++i){
+                    for (size_t i = 0; i < transformedTrigs.size(); ++i)
                         rasterizer.DrawPrimitiveGBuffer(transformedTrigs[i], originalTrigs[i], rasterizer.GBuffer);
-                    }
+                    
             }
             if (loader.GetType() == TestType::DEFERRED_SHADING)
                 rasterizer.DrawPrimitiveShaded(image);

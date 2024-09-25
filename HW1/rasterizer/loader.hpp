@@ -108,7 +108,8 @@ public:
             "Anti-alias: " + AAStr + ((this->AAConfig == AntiAliasConfig::NONE) ? "" : " with spp " + ToStr(this->AASpp)) + "\n" +
             "Resolution: " + ToStr(this->width) + "x" + ToStr(this->height) + "\n" +
             "Model: " + this->modelName + "\n" +
-            "Output: " + this->outputName + "\n" + 
+            "Output: " + this->outputName + "\n" +
+            "Texture: " +(this->textureName.empty() ? "<no texture specified>" : this->textureName) + "\n" +
             ((camera.width == 0) ? "<no camera specified>" : (this->camera.Info())) + "\n" +
             transformStr + lightStr;
     }
@@ -119,6 +120,7 @@ public:
     inline const uint32_t GetWidth() const { return this->width; }
     inline const uint32_t GetHeight() const { return this->height; }
     inline const std::string GetOutputName() const { return this->outputName; }
+    inline const std::string GetTextureName() const { return this->textureName; }
 
     inline const glm::vec3 GetTestInput() const 
     {
@@ -152,6 +154,7 @@ private:
     uint32_t height;
     std::string modelName;
     std::string outputName;
+    std::string textureName;
     AntiAliasConfig AAConfig = AntiAliasConfig::NONE;
     uint32_t AASpp = 0;
 
