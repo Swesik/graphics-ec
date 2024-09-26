@@ -116,8 +116,8 @@ public:
     void UpdateDepthAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, ImageGrey& ZBuffer);
 
     /**
-     * Update the depth information at a single pixel in the ZBuffer. This function will be called for every pixel in
-     * the bounding box of the triangle.
+     * Update the sample information at a single pixel in the MSSABuffer. This function will be called for every pixel
+     * in the bounding box of the triangle.
      * @param x: x coordinate of the pixel
      * @param y: y coordinate of the pixel
      * @param original: the original triangle in the model space (before MVP transformation)
@@ -128,7 +128,8 @@ public:
     void UpdateMSAAAtPixel(uint32_t x, uint32_t y, Triangle original, Triangle transformed, ImageGrey& MSAAMask);
 
     /**
-     * @brief Create a vector MipMap levels
+     * @brief Create a vector MipMap levels. This will modify the this->mipmap_vector
+     * Note: this->mipmap_vector[0] cooresponds to the heighest resolution
      *
      * @param texture_filename: filename of the texture
      */
@@ -144,8 +145,8 @@ public:
     Color GetTexel(glm::vec2 tex_coord, float depth);
 
     /**
-     * Update the depth information at a single pixel in the ZBuffer. This function will be called for every pixel in
-     * the bounding box of the triangle.
+     * Update the gbuffer information at a single pixel in the ZBuffer. This function will be called for every pixel in
+     * the bounding box of the triangle. This is specifically used for deferred shading.
      * @param x: x coordinate of the pixel
      * @param y: y coordinate of the pixel
      * @param original: the original triangle in the model space (before MVP transformation)
