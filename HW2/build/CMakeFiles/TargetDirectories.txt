@@ -1,3 +1,0 @@
-/Users/swesikramineni/github/eecs498-graphics/eecs498-graphics-p1/HW2/build/CMakeFiles/RayTracing.dir
-/Users/swesikramineni/github/eecs498-graphics/eecs498-graphics-p1/HW2/build/CMakeFiles/edit_cache.dir
-/Users/swesikramineni/github/eecs498-graphics/eecs498-graphics-p1/HW2/build/CMakeFiles/rebuild_cache.dir
