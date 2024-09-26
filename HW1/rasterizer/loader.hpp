@@ -2,39 +2,36 @@
 #define LOADER_H
 
 #include <cstdint>
-#include <string>
 #include <optional>
+#include <string>
 
-#include "entities.hpp"
 #include "../thirdparty/tinyobj/tiny_obj_fwd.h"
+#include "entities.hpp"
 
-namespace tinyobj
-{
-    struct shape_t;
-    struct attrib_t;
+namespace tinyobj {
+struct shape_t;
+struct attrib_t;
 }
 
 // Loads yaml config and obj models
 
-enum class TestType
-{
+enum class TestType {
     TRIANGLE,
-    TRANSFORM, TRANSFORM_TEST,
+    TRANSFORM,
+    TRANSFORM_TEST,
     TEXTURE_TEST,
-    SHADING_DEPTH, SHADING, DEFERRED_SHADING,
+    SHADING_DEPTH,
+    SHADING,
+    DEFERRED_SHADING,
     ERROR
 };
 
-enum class AntiAliasConfig
-{
-    NONE, SSAA, MSAA
-};
+enum class AntiAliasConfig { NONE, SSAA, MSAA };
 
 std::string ToStr(glm::vec4 vec);
 std::string ToStr(glm::vec3 vec);
 
-class Loader
-{
+class Loader {
 public:
     Loader() = default;
     Loader(std::string filename);
@@ -42,8 +39,7 @@ public:
     bool Load();
 
 
-    inline std::string Info() const
-    {
+    inline std::string Info() const {
         std::string typeStr = "";
         if (this->type == TestType::TRIANGLE)
             typeStr = "triangle";
@@ -69,15 +65,12 @@ public:
             AAStr = "MSAA";
 
         std::string transformStr = "<no transform needed>\n";
-        if (this->type != TestType::TRIANGLE)
-        {
+        if (this->type != TestType::TRIANGLE) {
             if (this->transforms.empty())
                 transformStr = "[WARNING] <no transform specified>\n";
-            else
-            {
+            else {
                 transformStr = "Transforms:\n";
-                for (auto& transform : this->transforms)
-                {
+                for (auto& transform : this->transforms) {
                     transformStr += "| - rotation: " + ToStr(transform.rotation) + "\n";
                     transformStr += "|   translation: " + ToStr(transform.translation) + "\n";
                     transformStr += "|   scale: " + ToStr(transform.scale) + "\n";
@@ -88,18 +81,15 @@ public:
         }
 
         std::string lightStr = "<no light needed>\n";
-        if (this->type == TestType::SHADING || this->type == TestType::DEFERRED_SHADING)
-        {
+        if (this->type == TestType::SHADING || this->type == TestType::DEFERRED_SHADING) {
             lightStr = "";
             lightStr += "Specular Exponent: " + ToStr(this->specularExponent) + "\n";
             lightStr += "Ambient Color: " + ToStr(this->ambientColor) + "\n";
             if (this->lights.empty())
                 lightStr += "[WARNING] <no light specified>\n";
-            else
-            {
+            else {
                 lightStr += "Lights:\n";
-                for (auto& light : this->lights)
-                {
+                for (auto& light : this->lights) {
                     lightStr += "| - position: " + ToStr(light.pos) + "\n";
                     lightStr += "|   intensity: " + ToStr(light.intensity) + "\n";
                     lightStr += "|   color: " + ToStr(light.color) + "\n";
@@ -107,14 +97,12 @@ public:
             }
         }
 
-        return "Type: " + typeStr + "\n" +
-            "Anti-alias: " + AAStr + ((this->AAConfig == AntiAliasConfig::NONE) ? "" : " with spp " + ToStr(this->AASpp)) + "\n" +
-            "Resolution: " + ToStr(this->width) + "x" + ToStr(this->height) + "\n" +
-            "Model: " + this->modelName + "\n" +
-            "Output: " + this->outputName + "\n" +
-            "Texture: " +(this->textureName.empty() ? "<no texture specified>" : this->textureName) + "\n" +
-            ((camera.width == 0) ? "<no camera specified>" : (this->camera.Info())) + "\n" +
-            transformStr + lightStr;
+        return "Type: " + typeStr + "\n" + "Anti-alias: " + AAStr
+             + ((this->AAConfig == AntiAliasConfig::NONE) ? "" : " with spp " + ToStr(this->AASpp)) + "\n"
+             + "Resolution: " + ToStr(this->width) + "x" + ToStr(this->height) + "\n" + "Model: " + this->modelName
+             + "\n" + "Output: " + this->outputName + "\n"
+             + "Texture: " + (this->textureName.empty() ? "<no texture specified>" : this->textureName) + "\n"
+             + ((camera.width == 0) ? "<no camera specified>" : (this->camera.Info())) + "\n" + transformStr + lightStr;
     }
 
     inline const TestType GetType() const { return this->type; }
@@ -125,15 +113,13 @@ public:
     inline const std::string GetOutputName() const { return this->outputName; }
     inline const std::string GetTextureName() const { return this->textureName; }
 
-    inline const glm::vec3 GetTestInput() const 
-    {
+    inline const glm::vec3 GetTestInput() const {
         if (this->input.has_value())
             return this->input.value();
         else
             throw std::runtime_error("Transform test input not specified");
     }
-    inline const glm::vec3 GetTestExpected() const
-    {
+    inline const glm::vec3 GetTestExpected() const {
         if (this->expected.has_value())
             return this->expected.value();
         else

@@ -19,13 +19,10 @@ void PrintTask(const Loader& loader) {
 void PrintTaskTriangle(const Triangle& trig) {
     std::string sephead = "=====================Triangle=====================\n";
     std::string sep = "==================================================\n";
-    std::string msg = sephead
-                    + "Vertex 1 position: " + ToStr(trig.pos[0]) + "\n"
-                    + "Vertex 2 position: " + ToStr(trig.pos[1]) + "\n"
-                    + "Vertex 3 position: " + ToStr(trig.pos[2]) + "\n\n"
-                    + "Vertex 1 tex-coord: " + ToStr(trig.tex_coord[0]) + "\n"
-                    + "Vertex 2 tex-coord: " + ToStr(trig.tex_coord[1]) + "\n"
-                    + "Vertex 3 tex-coord: " + ToStr(trig.tex_coord[2]) + "\n" + sep;
+    std::string msg = sephead + "Vertex 1 position: " + ToStr(trig.pos[0]) + "\n"
+                    + "Vertex 2 position: " + ToStr(trig.pos[1]) + "\n" + "Vertex 3 position: " + ToStr(trig.pos[2])
+                    + "\n\n" + "Vertex 1 tex-coord: " + ToStr(trig.tex_coord[0]) + "\n" + "Vertex 2 tex-coord: "
+                    + ToStr(trig.tex_coord[1]) + "\n" + "Vertex 3 tex-coord: " + ToStr(trig.tex_coord[2]) + "\n" + sep;
     std::cout << msg;
 }
 
@@ -57,9 +54,11 @@ void Renderer::Render(int argc, char** argv) {
 
         Rasterizer rasterizer(loader);
 
-        if (!loader.GetTextureName().empty()){
+        if (!loader.GetTextureName().empty()) {
             rasterizer.CreateMipMap(loader.GetTextureName());
-            if (loader.GetType() == TestType::TEXTURE_TEST){ return; }
+            if (loader.GetType() == TestType::TEXTURE_TEST) {
+                return;
+            }
         }
 
 
@@ -102,12 +101,13 @@ void Renderer::Render(int argc, char** argv) {
         } else {
             auto& shapes = loader.GetShapes();
             auto& attribs = loader.GetAttribs();
-            if (loader.GetType() == TestType::SHADING_DEPTH || loader.GetType() == TestType::SHADING || loader.GetType() == TestType::DEFERRED_SHADING){
+            if (loader.GetType() == TestType::SHADING_DEPTH || loader.GetType() == TestType::SHADING
+                || loader.GetType() == TestType::DEFERRED_SHADING) {
                 rasterizer.InitZBuffer(rasterizer.ZBuffer);
-                if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA){
+                if (loader.GetAntiAliasConfig() == AntiAliasConfig::MSAA) {
                     rasterizer.InitMSSAMask(rasterizer.MSAA_mask, loader.GetSpp());
                 }
-                if(loader.GetType() == TestType::DEFERRED_SHADING){
+                if (loader.GetType() == TestType::DEFERRED_SHADING) {
                     rasterizer.InitGBuffer(rasterizer.GBuffer);
                 }
             }
@@ -170,7 +170,8 @@ void Renderer::Render(int argc, char** argv) {
 
                     if (loader.GetType() == TestType::TRIANGLE || loader.GetType() == TestType::TRANSFORM)
                         rasterizer.DrawPrimitiveRaw(image, transformed, loader.GetAntiAliasConfig(), loader.GetSpp());
-                    else if (loader.GetType() == TestType::SHADING_DEPTH || loader.GetType() == TestType::SHADING || loader.GetType() == TestType::DEFERRED_SHADING)
+                    else if (loader.GetType() == TestType::SHADING_DEPTH || loader.GetType() == TestType::SHADING
+                             || loader.GetType() == TestType::DEFERRED_SHADING)
                         rasterizer.DrawPrimitiveDepth(transformed, original, rasterizer.ZBuffer);
                     if (loader.GetType() == TestType::SHADING || loader.GetType() == TestType::DEFERRED_SHADING) {
                         transformedTrigs.push_back(transformed);
@@ -186,10 +187,8 @@ void Renderer::Render(int argc, char** argv) {
                 else if (loader.GetType() == TestType::DEFERRED_SHADING)
                     for (size_t i = 0; i < transformedTrigs.size(); ++i)
                         rasterizer.DrawPrimitiveGBuffer(transformedTrigs[i], originalTrigs[i], rasterizer.GBuffer);
-                    
             }
-            if (loader.GetType() == TestType::DEFERRED_SHADING)
-                rasterizer.DrawPrimitiveShaded(image);
+            if (loader.GetType() == TestType::DEFERRED_SHADING) rasterizer.DrawPrimitiveShaded(image);
         }
 
         if (loader.GetType() == TestType::SHADING_DEPTH)

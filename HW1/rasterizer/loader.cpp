@@ -1,39 +1,33 @@
 #include "loader.hpp"
 
 #include <cstdint>
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include <string>
 
 #include "../thirdparty/fkyaml/node.hpp"
 #include "image.hpp"
 
-#define TINYOBJLOADER_IMPLEMENTATION 
-#define TINYOBJLOADER_USE_MAPBOX_EARCUT                 // use robust triangulation
+#define TINYOBJLOADER_IMPLEMENTATION
+#define TINYOBJLOADER_USE_MAPBOX_EARCUT   // use robust triangulation
 #define TINYOBJLOADER_DONOT_INCLUDE_MAPBOX_EARCUT
-#include "../thirdparty/mapbox/earcut.hpp"              // included as a separate header
+#include "../thirdparty/mapbox/earcut.hpp"   // included as a separate header
 #include "../thirdparty/tinyobj/tiny_obj_loader.h"
 
-void LoadVec3(const fkyaml::node& parent, std::string tag, glm::vec3& vec)
-{
-    if (parent.contains(tag))
-    {
+void LoadVec3(const fkyaml::node& parent, std::string tag, glm::vec3& vec) {
+    if (parent.contains(tag)) {
         auto node = parent[tag];
         vec.x = node[0].get_value<float>();
         vec.y = node[1].get_value<float>();
         vec.z = node[2].get_value<float>();
-    }
-    else 
-    {
+    } else {
         std::string msg = "missing tag " + tag;
         throw fkyaml::exception(msg.c_str());
     }
 }
 
-void LoadColor(const fkyaml::node& parent, std::string tag, Color& color)
-{
-    if (parent.contains(tag))
-    {
+void LoadColor(const fkyaml::node& parent, std::string tag, Color& color) {
+    if (parent.contains(tag)) {
         auto node = parent[tag];
         uint32_t r, g, b, a;
         r = node[0].get_value<uint32_t>();
@@ -41,110 +35,93 @@ void LoadColor(const fkyaml::node& parent, std::string tag, Color& color)
         b = node[2].get_value<uint32_t>();
         a = 255;
 
-        if (r > 255 || g > 255 || b > 255)
-            throw fkyaml::exception("color value exceeding 255");
-        
+        if (r > 255 || g > 255 || b > 255) throw fkyaml::exception("color value exceeding 255");
+
         color = Color(r, g, b, a);
-    }
-    else 
-    {
+    } else {
         std::string msg = "missing tag " + tag;
         throw fkyaml::exception(msg.c_str());
     }
 }
 
-void LoadQuat(const fkyaml::node& parent, std::string tag, glm::quat& quat)
-{
-    if (parent.contains(tag))
-    {
+void LoadQuat(const fkyaml::node& parent, std::string tag, glm::quat& quat) {
+    if (parent.contains(tag)) {
         auto node = parent[tag];
         quat.w = node[0].get_value<float>();
         quat.x = node[1].get_value<float>();
         quat.y = node[2].get_value<float>();
         quat.z = node[3].get_value<float>();
-    }
-    else 
-    {
+    } else {
         std::string msg = "missing tag " + tag;
         throw fkyaml::exception(msg.c_str());
     }
 }
 
 #define LOAD_DATA_FROM_YAML(var, node, tag, TYPE) \
-    if (node.contains(#tag)) \
-        var = node[#tag].get_value<TYPE>(); \
-    else \
+    if (node.contains(#tag))                      \
+        var = node[#tag].get_value<TYPE>();       \
+    else                                          \
         throw fkyaml::exception(("missing tag " + std::string(#tag)).c_str());
 
 #define MAYBE_LOAD_DATA_FROM_YAML(var, node, tag, TYPE) \
-    if (node.contains(#tag)) \
-        var = node[#tag].get_value<TYPE>(); \
+    if (node.contains(#tag)) var = node[#tag].get_value<TYPE>();
 
 #define LOAD_DEF_DATA_FROM_YAML(var, node, tag, TYPE) \
-    TYPE var; \
+    TYPE var;                                         \
     LOAD_DATA_FROM_YAML(var, node, tag, TYPE)
 
 #define LOAD_NODE_FROM_YAML_NOERROR(node, root, tag) \
-    auto node = root; \
-    if (root.contains(#tag)) \
-        node = root[#tag]; \
-    else \
+    auto node = root;                                \
+    if (root.contains(#tag))                         \
+        node = root[#tag];                           \
+    else                                             \
         std::cout << "[WARNING] missing tag " << #tag << std::endl;
 
 #define LOAD_NODE_FROM_YAML(node, root, tag) \
-    auto node = root; \
-    if (root.contains(#tag)) \
-        node = root[#tag]; \
-    else \
+    auto node = root;                        \
+    if (root.contains(#tag))                 \
+        node = root[#tag];                   \
+    else                                     \
         throw fkyaml::exception(("missing tag " + std::string(#tag)).c_str());
 
-#define LOAD_VEC3_FROM_YAML(node, tag, vec)     LoadVec3(node, #tag, vec);
-#define LOAD_COLOR_FROM_YAML(node, tag, vec)    LoadColor(node, #tag, vec);
-#define LOAD_QUAT_FROM_YAML(node, tag, vec)     LoadQuat(node, #tag, vec);
+#define LOAD_VEC3_FROM_YAML(node, tag, vec) LoadVec3(node, #tag, vec);
+#define LOAD_COLOR_FROM_YAML(node, tag, vec) LoadColor(node, #tag, vec);
+#define LOAD_QUAT_FROM_YAML(node, tag, vec) LoadQuat(node, #tag, vec);
 
-Loader::Loader(std::string filename) : Loader() 
-{
+Loader::Loader(std::string filename)
+    : Loader() {
     this->filename = filename;
 }
 
-bool Loader::Load()
-{
+bool Loader::Load() {
     bool yamlSuccess = LoadYaml();
-    if (!yamlSuccess)
-    {
+    if (!yamlSuccess) {
         std::cerr << "fail loading yaml. Quit.\n";
         return false;
-    }
-    else 
-    {   
-        if (this->type == TestType::TEXTURE_TEST){
+    } else {
+        if (this->type == TestType::TEXTURE_TEST) {
             return true;
         }
 
         bool objSuccess = LoadObj();
-        if (!objSuccess)
-        {
+        if (!objSuccess) {
             std::cerr << "fail loading obj. Quit.\n";
             return false;
-        }
-        else
-            return true;    
+        } else
+            return true;
     }
 }
 
-bool Loader::LoadYaml()
-{
+bool Loader::LoadYaml() {
     // If the loader fails in any way, the resulting object must have TestType::ERROR
 
-    // Parse the exact content of the config file here 
-    // If there is any error in parsing, throw a fkyaml::exception instead of 
-    //   directly setting type to TestType::ERROR so that the error can be 
+    // Parse the exact content of the config file here
+    // If there is any error in parsing, throw a fkyaml::exception instead of
+    //   directly setting type to TestType::ERROR so that the error can be
     //   correctly printed out.
-    try
-    {
+    try {
         std::ifstream ifs(filename);
-        if (!ifs)
-        {
+        if (!ifs) {
             std::string msg = "error opening config file " + filename;
             throw fkyaml::exception(msg.c_str());
         }
@@ -152,9 +129,9 @@ bool Loader::LoadYaml()
 
         // type
         LOAD_DEF_DATA_FROM_YAML(task, root, task, std::string)
-        if (task == "triangle"){
+        if (task == "triangle") {
             this->type = TestType::TRIANGLE;
-        } else if (task == "transform"){
+        } else if (task == "transform") {
             this->type = TestType::TRANSFORM;
         } else if (task == "transform-test") {
             this->type = TestType::TRANSFORM_TEST;
@@ -171,14 +148,14 @@ bool Loader::LoadYaml()
             throw fkyaml::exception(msg.c_str());
         }
 
-        if (this->type == TestType::TEXTURE_TEST){
+        if (this->type == TestType::TEXTURE_TEST) {
             LOAD_DATA_FROM_YAML(this->textureName, root, texture, std::string)
             return true;
         }
 
         // resolution
         LOAD_NODE_FROM_YAML(resNode, root, resolution)
-        const uint32_t MAX_RES = 4096;\
+        const uint32_t MAX_RES = 4096;
         LOAD_DATA_FROM_YAML(this->width, resNode, width, uint32_t)
         LOAD_DATA_FROM_YAML(this->height, resNode, height, uint32_t)
 
@@ -191,8 +168,7 @@ bool Loader::LoadYaml()
         MAYBE_LOAD_DATA_FROM_YAML(this->textureName, root, texture, std::string)
 
         // If the task is TRANSFORM or SHADING, then there must be a camera; load it
-        if (this->type != TestType::TRIANGLE)
-        {
+        if (this->type != TestType::TRIANGLE) {
             // Load Camera
             LOAD_NODE_FROM_YAML(cameraNode, root, camera)
             LOAD_VEC3_FROM_YAML(cameraNode, pos, camera.pos)
@@ -205,10 +181,8 @@ bool Loader::LoadYaml()
 
             // Load Transforms
             LOAD_NODE_FROM_YAML_NOERROR(transformNode, root, transforms)
-            if (transformNode != root)
-            {
-                for (auto& subnode : transformNode)
-                {
+            if (transformNode != root) {
+                for (auto& subnode : transformNode) {
                     glm::quat rotation;
                     glm::vec3 translation, scale;
                     LOAD_QUAT_FROM_YAML(subnode, rotation, rotation)
@@ -221,10 +195,8 @@ bool Loader::LoadYaml()
 
             // Load Light Infos
             LOAD_NODE_FROM_YAML_NOERROR(lightNode, root, lights)
-            if (lightNode != root)
-            {
-                for (auto& light : lightNode)
-                {
+            if (lightNode != root) {
+                for (auto& light : lightNode) {
                     LOAD_DEF_DATA_FROM_YAML(intensity, light, intensity, float)
                     glm::vec3 pos;
                     LOAD_VEC3_FROM_YAML(light, pos, pos)
@@ -235,45 +207,35 @@ bool Loader::LoadYaml()
                 }
             }
 
-            if (this->type == TestType::SHADING || this->type == TestType::DEFERRED_SHADING)
-            {
+            if (this->type == TestType::SHADING || this->type == TestType::DEFERRED_SHADING) {
                 LOAD_DATA_FROM_YAML(this->specularExponent, root, exponent, float)
                 LOAD_COLOR_FROM_YAML(root, ambient, this->ambientColor)
             }
-        }
-        else if (this->type == TestType::TRIANGLE)
+        } else if (this->type == TestType::TRIANGLE)
         // if the task is TRIANGLE, then need to check whether it is SSAA
         {
             LOAD_DEF_DATA_FROM_YAML(AAName, root, antialias, std::string)
-            if (AAName == "none")
-            {
+            if (AAName == "none") {
                 this->AAConfig = AntiAliasConfig::NONE;
                 this->AASpp = 0;
-            }
-            else if (AAName == "SSAA")
-            {
+            } else if (AAName == "SSAA") {
                 this->AAConfig = AntiAliasConfig::SSAA;
                 LOAD_DATA_FROM_YAML(this->AASpp, root, samples, uint32_t)
-            }
-            else if (AAName == "MSAA")
-            {
+            } else if (AAName == "MSAA") {
                 this->AAConfig = AntiAliasConfig::SSAA;
                 LOAD_DATA_FROM_YAML(this->AASpp, root, samples, uint32_t)
             }
         }
 
         // If the task is TRANSFORM_TEST, then load the input/expected
-        if (this->type == TestType::TRANSFORM_TEST)
-        {
+        if (this->type == TestType::TRANSFORM_TEST) {
             glm::vec3 tempInput, tempExpected;
             LOAD_VEC3_FROM_YAML(root, input, tempInput)
             LOAD_VEC3_FROM_YAML(root, expected, tempExpected)
             this->input = glm::vec3(tempInput);
             this->expected = tempExpected;
         }
-    }
-    catch(const fkyaml::exception& e)
-    {
+    } catch (const fkyaml::exception& e) {
         std::cerr << "error parsing config yaml file: " << filename << std::endl;
         std::cerr << "| msg: " << e.what() << '\n';
         this->type = TestType::ERROR;
@@ -281,8 +243,7 @@ bool Loader::LoadYaml()
 
     // If type is error, init height and width with 0; otherwise all data must have been initialized
     //   where they are retrieved.
-    if (this->type == TestType::ERROR)
-    {
+    if (this->type == TestType::ERROR) {
         this->width = 0;
         this->height = 0;
         this->outputName = "__error";
@@ -291,8 +252,7 @@ bool Loader::LoadYaml()
     return true;
 }
 
-bool Loader::LoadObj()
-{
+bool Loader::LoadObj() {
     std::string filename = this->modelName + ".obj";
     tinyobj::ObjReaderConfig readerConfig;
     readerConfig.mtl_search_path = "./";
@@ -302,15 +262,12 @@ bool Loader::LoadObj()
 
     tinyobj::ObjReader reader;
 
-    if (!reader.ParseFromFile(filename, readerConfig)) 
-    {
-        if (!reader.Error().empty()) 
-            std::cerr << "TinyObjReader [ERROR]: " << reader.Error();
+    if (!reader.ParseFromFile(filename, readerConfig)) {
+        if (!reader.Error().empty()) std::cerr << "TinyObjReader [ERROR]: " << reader.Error();
         return false;
     }
 
-    if (!reader.Warning().empty()) 
-        std::cout << "TinyObjReader [WARNING]: " << reader.Warning();
+    if (!reader.Warning().empty()) std::cout << "TinyObjReader [WARNING]: " << reader.Warning();
 
     this->attribs = reader.GetAttrib();
     this->shapes = reader.GetShapes();
