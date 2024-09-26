@@ -1,5 +1,5 @@
 # EECS498-014-Materials
-Modified HW1 code base for people interested in doing extra credit. Checkout the extra-credit.md in HW1 for some information on the tasks that now exist. I've removed all code in my rasterizer_impl.cpp other than function stubs. You will probably want to refernence the rasterizer.hpp for documentation on the new functions to implement as well as some new member variables that have been added for some of these tasks. Note that I have not build out infrastructure for shadow mapping or a rendering api.
+This is a modified HW1 code base for people interested in doing extra credit. I've removed all code in my rasterizer_impl.cpp other than function stubs. You will probably want to refernence the rasterizer.hpp for documentation on the new functions to implement as well as some new member variables that have been added for some of these tasks. Note that I have not build out infrastructure for shadow mapping or a rendering api.
 
 If you are interested in doing shadow mapping, you will want to create a vector of shadow buffers for each light in rasterizier.hpp and have 1 function to generate this buffer for each light. Your shader function will then have to be udpated to include the shadow information.
 
